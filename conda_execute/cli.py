@@ -13,6 +13,7 @@ import shutil
 import subprocess
  
 import conda.api
+import conda.lock
 import conda.resolve
 import psutil
 import yaml
@@ -94,10 +95,13 @@ def execute(path, force_env=False):
     log.info('Using specification: \n{}'.format(yaml.dump(spec)))
 
     # TODO: Lock to prevent conda-execute removing any environments.
-    env_prefix = create_env(env_spec, force_env)
-    log.info('Prefix: {}'.format(env_prefix))
-    # Register the environment for the conda-execute cache. (PID, creation time etc.)
-    register_env_usage(env_prefix)
+    with conda.lock.Locked(conda_execute.config.env_dir):
+        env_prefix = create_env(env_spec, force_env)
+        log.info('Prefix: {}'.format(env_prefix))
+        # Register the environment for the conda-execute cache. (PID, creation time etc.)
+        # We must do this within the scope of the lock to avoid cleanup race conditions.
+        register_env_usage(env_prefix)
+
     return execute_within_env(env_prefix, spec['run_with'] + [path])
 
 
@@ -127,6 +131,12 @@ def execute_within_env(env_prefix, cmd):
 
 
 def create_env(spec, force_recreation=False):
+    """
+    Create a temporary environment from the given specification.
+
+    To avoid race conditions, ensure that a lock is attached to the env directory.
+
+    """
     spec = tuple(sorted(spec))
     # Use the first 20 hex characters of the sha256 to make the SHA somewhat legible. This could extend
     # in the future if we have sufficient need.
@@ -134,9 +144,9 @@ def create_env(spec, force_recreation=False):
     env_locn = os.path.join(conda_execute.config.env_dir, hash)
 
     if force_recreation and os.path.exists(env_locn):
-        # TODO: Aquire a lock, and remove the environment.
-        log.info("Clearing up existing environment at {} for re-creation".format(env_locn))
-        shutil.rmtree(env_locn)
+        with conda.lock.Locked(conda_execute.config.env_dir):
+            log.info("Clearing up existing environment at {} for re-creation".format(env_locn))
+            shutil.rmtree(env_locn)
 
     if not os.path.exists(env_locn):
         channels = ['scitools']
@@ -148,15 +158,16 @@ def create_env(spec, force_recreation=False):
         # Put out a newline. Conda's solve doesn't do it for us. 
         log.info('\n')
 
-        # TODO: Aquire the conda lock...
         for tar_name in full_list_of_packages:
             pkg_info = index[tar_name]
             dist_name = tar_name[:-len('.tar.bz2')]
             if not conda.install.is_extracted(conda_execute.config.pkg_dir, dist_name):
                 if not conda.install.is_fetched(conda_execute.config.pkg_dir, dist_name):
                     log.info('Fetching {}'.format(dist_name))
-                    conda.fetch.fetch_pkg(pkg_info, conda_execute.config.pkg_dir)
-                conda.install.extract(conda_execute.config.pkg_dir, dist_name)
+                    with conda.lock.Locked(conda_execute.config.pkg_dir):
+                        conda.fetch.fetch_pkg(pkg_info, conda_execute.config.pkg_dir)
+                with conda.lock.Locked(conda_execute.config.pkg_dir):
+                    conda.install.extract(conda_execute.config.pkg_dir, dist_name)
             conda.install.link(conda_execute.config.pkg_dir, env_locn, dist_name)
 
     return env_locn
@@ -171,7 +182,8 @@ def register_env_usage(env_prefix):
     ps = psutil.Process()
     info_file = os.path.join(env_prefix, 'conda-meta', 'execution.log')
     with open(info_file, 'a') as fh:
-        fh.write('{}, {}\n'.format(ps.pid, calendar.timegm(time.gmtime())))
+        # Write out the PID and the integer creation time.
+        fh.write('{}, {}\n'.format(ps.pid, int(ps.create_time())))
 
 
 def main():

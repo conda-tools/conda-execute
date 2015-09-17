@@ -51,18 +51,22 @@ print(numpy.random.normal(5, 2, 10))
 
 ```
 
-```
-$ ./my_script.py
-Re-using environment for "my_script.py" in /tmp/conda-execute/envs/4d31ab21
-```
+Cleaning up
+-----------
+
+conda execute automatically cleans up all environments which are unused in the last N hours (configurable, default 25).
+However, to manually run the cleanup process, it is possible to inspect the temporary environments with:
+
+```$ conda tmpenv list```
+
+And any environments with 0 running processes can be removed with:
+
+```$ conda tmpenv clear```
 
 
-Options:
+Process safety
+--------------
 
-    in shebang   |   call with conda execute
-
-       True                False                 - create env, then run with the specified program, or sh
-       False               True                  - create env, then run with the shebang, or the specified program, or sh.
-       True                True                  - create env, then run with the specified program, or sh. Not the shebang though.
-       False               False                 - this is just a shell script.
-
+conda execute has been written to allow concurrent conda execute usage whilst at the same time sharing environments.
+This means that conda execute must make use of conda's locking machinery to avoid race-conditions.
+If you experience issues with the locking, please raise an issue with as much detail as possible.

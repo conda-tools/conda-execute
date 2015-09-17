@@ -17,7 +17,8 @@ setup(name='conda-execute',
       packages=['conda_execute'],
       entry_points={
           'console_scripts': [
-              'conda-execute = conda_execute.cli:main'
+              'conda-execute = conda_execute.cli:main',
+              'conda-tmpenv = conda_execute.tmp_env:main',
           ]
       },
      )

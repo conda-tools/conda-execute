@@ -13,7 +13,6 @@ conda execute -v -c <<EOF
 # - python
 # run_with: python
 print('hello')
-
 EOF
 
 cat $example_script | conda execute -c
