@@ -14,6 +14,11 @@ env_dir_template = execute_config.get('env-dir', '{config.envs_dirs[0]}/../tmp_e
 env_dir = os.path.normpath(os.path.expanduser(env_dir_template.format(config=conda.config)))
 
 
+# The miniumum amount of time since a new process has used an environment
+# (in hours) before it can be considered for removing.
+min_age = execute_config.get('remove-if-unused-for', 25)
+
+
 pkg_dir_template = execute_config.get('env-dir', '{config.pkgs_dirs[0]}')
 
 # Expand user and normalize the path.

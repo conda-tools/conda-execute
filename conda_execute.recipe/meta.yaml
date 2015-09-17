@@ -1,0 +1,28 @@
+{% set data = load_setuptools()%}
+
+package:
+    name: conda-execute
+    version: {{data.get('version')}}
+
+source:
+    path: ../
+
+requirements:
+    build:
+        - python
+        - setuptools
+
+    run:
+        - python
+        - setuptools
+        - yaml
+        - conda
+        - psutil
+
+
+test:
+    imports:
+        - conda_execute
+    commands:
+        - conda execute --help
+        - conda tmpenv --help

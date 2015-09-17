@@ -19,6 +19,7 @@ import psutil
 import yaml
 
 import conda_execute.config
+from conda_execute.tmp_env import cleanup_tmp_envs
 
 
 log = logging.getLogger('conda-execute')
@@ -227,7 +228,9 @@ def main():
             logger.addHandler(logging.StreamHandler())
         logger.setLevel(log_level + offset)
     log.debug('Arguments passed: {}'.format(args))
+
     exit_actions = []
+
     try:
         if args.script:
             with tempfile.NamedTemporaryFile(prefix='conda-execute_', delete=False) as fh:
@@ -241,6 +244,7 @@ def main():
         else:
             raise ValueError('Either pass the filename to execute, or pipe with -c.')
 
+        exit_actions.append(cleanup_tmp_envs)
         exit(execute(path, force_env=args.force_env))
     finally:
         for action in exit_actions:

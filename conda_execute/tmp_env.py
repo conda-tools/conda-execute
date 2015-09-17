@@ -2,15 +2,10 @@ from __future__ import print_function
 
 import argparse
 import calendar
-import hashlib
-from io import StringIO
+import datetime
 import logging
 import os
-import platform
-import tempfile
-import time
 import shutil
-import subprocess
  
 import conda.api
 import conda.lock
@@ -41,8 +36,18 @@ def subcommand_list(args):
     The function which handles the list subcommand.
 
     """
-    for env, alive_pids in envs_and_running_pids():
-       print('{} users of {}'.format(len(alive_pids), env, ', '.join(map(str, alive_pids))))
+    for env, env_stats in envs_and_running_pids():
+        last_pid_dt = datetime.datetime.fromtimestamp(env_stats['latest_creation_time'])
+        age = datetime.datetime.now() - last_pid_dt
+        old = age > datetime.timedelta(conda_execute.config.min_age)
+        PIDs = env_stats['alive_PIDs']
+        if PIDs:
+            running_pids = '(running PIDs {})'.format(', '.join(map(str, env_stats['alive_PIDs'])))
+        else:
+            running_pids = ''
+        # TODO Use pretty timedelta printing. e.g. 1 hour 30 mins, or 2 weeks, 6 days and 4 hours etc.
+        print('{} processes (newest created {} ago) using {} {}'.format(
+                len(PIDs), age, env, running_pids))
 
 
 def tmp_envs():
@@ -53,6 +58,7 @@ def tmp_envs():
     envs = [prefix for prefix in envs
             if os.path.isdir(os.path.join(prefix, 'conda-meta'))]
     return envs
+
 
 def lock(lock_directory):
     """
@@ -81,22 +87,36 @@ def envs_and_running_pids():
                 for line in fh:
                     execution_pids.append(line.strip().split(','))
             alive_pids = []
-            for pid, creation_time in execution_pids:
+            newest_pid_time = 0
+            # Iterate backwards, as we are more likely to hit newer ones first in that order.
+            for pid, creation_time in execution_pids[::-1]:
                 pid = int(pid)
                 # Trim off the decimals to simplify comparisson with pid.create_time().
                 creation_time = int(float(creation_time))
+
+                if creation_time > newest_pid_time:
+                    newest_pid_time = creation_time
 
                 # Check if the process is still running.
                 alive = (pid in running_pids and
                          int(psutil.Process(pid).create_time()) == creation_time)
                 if alive:
                     alive_pids.append(pid)
-            yield env, alive_pids
+            yield env, {'alive_PIDs': alive_pids, 'latest_creation_time': newest_pid_time}
 
 
 def subcommand_clear(args):
-    for env, live_pids in envs_and_running_pids():
-        if len(live_pids) == 0:
+    return cleanup_tmp_envs(min_age=float(args.min_age))
+
+
+def cleanup_tmp_envs(min_age=None):
+    for env, env_stats in envs_and_running_pids():
+        last_pid_dt = datetime.datetime.fromtimestamp(env_stats['latest_creation_time'])
+        age = datetime.datetime.now() - last_pid_dt
+        if min_age is None:
+            min_age = conda_execute.config.min_age
+        old = age > datetime.timedelta(min_age)
+        if len(env_stats['alive_PIDs']) == 0 and old:
             log.warn('Removing unused temporary environment {}.'.format(env))
             shutil.rmtree(env)
 
@@ -114,6 +134,9 @@ def main():
 
     clear_subcommand = subparsers.add_parser('clear', parents=[common_arguments])
     clear_subcommand.set_defaults(subcommand_func=subcommand_clear)
+    clear_subcommand.add_argument('--min-age', help=('The minimum age for the last registered PID on an '
+                                                     'environment, before the environment can be considered '
+                                                     'for removal.'), default=None, dest='min_age') 
  
     args = parser.parse_args() 
 
