@@ -97,7 +97,7 @@ def execute(path, force_env=False):
 
     # TODO: Lock to prevent conda-execute removing any environments.
     with conda.lock.Locked(conda_execute.config.env_dir):
-        env_prefix = create_env(env_spec, force_env)
+        env_prefix = create_env(env_spec, force_env, spec.get('channels', []))
         log.info('Prefix: {}'.format(env_prefix))
         # Register the environment for the conda-execute cache. (PID, creation time etc.)
         # We must do this within the scope of the lock to avoid cleanup race conditions.
@@ -131,7 +131,7 @@ def execute_within_env(env_prefix, cmd):
         return code
 
 
-def create_env(spec, force_recreation=False):
+def create_env(spec, force_recreation=False, extra_channels=()):
     """
     Create a temporary environment from the given specification.
 
@@ -150,8 +150,7 @@ def create_env(spec, force_recreation=False):
             shutil.rmtree(env_locn)
 
     if not os.path.exists(env_locn):
-        channels = ['scitools']
-        index = conda.api.get_index(channels)
+        index = conda.api.get_index(extra_channels)
         # Ditto re the quietness.
         r = conda.resolve.Resolve(index)
         full_list_of_packages = sorted(r.solve(spec))
