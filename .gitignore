@@ -1,3 +1,11 @@
+# conda-execute files
+tests/executable_script.sh
+
+
+# The rest, a generated list from GitHub...
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
