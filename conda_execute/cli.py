@@ -71,7 +71,7 @@ def extract_spec(fh):
         else:
             if platform.system() != 'Windows':
                 # TODO: Test this.
-                spec.setdefault('run_with', 'sh -c')
+                spec.setdefault('run_with', ['/bin/sh', '-c'])
 
     return spec 
 
@@ -88,7 +88,7 @@ def read_shebang(line):
     return shebang
 
 
-def execute(path, force_env=False):
+def execute(path, force_env=False, arguments=()):
     with open(path, 'r') as fh:
         spec = extract_spec(fh)
 
@@ -103,7 +103,7 @@ def execute(path, force_env=False):
         # We must do this within the scope of the lock to avoid cleanup race conditions.
         register_env_usage(env_prefix)
 
-    return execute_within_env(env_prefix, spec['run_with'] + [path])
+    return execute_within_env(env_prefix, spec['run_with'] + [path] + list(arguments))
 
 
 def execute_within_env(env_prefix, cmd):
@@ -118,14 +118,14 @@ def execute_within_env(env_prefix, cmd):
     # Note os.pathsep != os.path.sep. It caught me out too ;)
     environ["PATH"] = os.pathsep.join(paths) + os.pathsep + os.environ["PATH"]
 
+    # The default is a non-zero return code. Successful processes will set this themselves.
+    code = 42
     try:
         code = subprocess.check_call(cmd, env=environ)
     except subprocess.CalledProcessError as exception:
         code = exception.returncode
         log.warn('{}: {}'.format(type(exception).__name__, exception))
     except Exception as exception:
-        # Everything else gets a non-zero return code.
-        code = 42
         log.warn('{}: {}'.format(type(exception).__name__, exception))
     finally:
         return code
@@ -206,9 +206,10 @@ def main():
                 values = [line + '\n' for line in values]
                 setattr(namespace, self.dest, values)
 
-    parser.add_argument('--script', '-c', nargs='*', action=StdIn,
-                        help='The script to execute.')
- 
+    parser.add_argument('--code', '-c', nargs='*', action=StdIn,
+                        help='The code to execute.')
+    parser.add_argument('remaining_args', help='Remaining arguments are passed through to the called script.',
+                        nargs=argparse.REMAINDER) 
     args = parser.parse_args() 
 
     log_level = logging.WARN
@@ -231,20 +232,20 @@ def main():
     exit_actions = []
 
     try:
-        if args.script:
+        if args.code:
             with tempfile.NamedTemporaryFile(prefix='conda-execute_', delete=False) as fh:
-                fh.writelines(args.script)
+                fh.writelines(args.code)
                 path = fh.name
                 log.info('Writing temporary code to {}'.format(path))
                 # Queue the temporary file up for cleaning.
                 exit_actions.append(lambda: os.remove(path))
         elif args.path:
-            path = args.path
+            path = os.path.abspath(args.path)
         else:
             raise ValueError('Either pass the filename to execute, or pipe with -c.')
 
         exit_actions.append(cleanup_tmp_envs)
-        exit(execute(path, force_env=args.force_env))
+        exit(execute(path, force_env=args.force_env, arguments=args.remaining_args))
     finally:
         for action in exit_actions:
             action()

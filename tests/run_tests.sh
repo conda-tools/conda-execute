@@ -15,9 +15,13 @@ conda execute -v -c <<EOF
 print('hello')
 EOF
 
+
 cat $example_script | conda execute -c
 
 conda execute $example_script
+
+# Test passing args in.
+conda execute $example_script wibble --arg1=123 foobar
 
 
 cat <<EOF > $tmp_script
@@ -41,4 +45,6 @@ print(np.random.normal(5, 2, 10))
 EOF
 chmod u+x $tmp_script
 $tmp_script
+
+
 
