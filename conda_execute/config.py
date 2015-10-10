@@ -19,7 +19,7 @@ env_dir = os.path.normpath(os.path.expanduser(env_dir_template.format(config=con
 min_age = execute_config.get('remove-if-unused-for', 25)
 
 
-pkg_dir_template = execute_config.get('env-dir', '{config.pkgs_dirs[0]}')
+pkg_dir_template = execute_config.get('pkg-dir', '{config.pkgs_dirs[0]}')
 
 # Expand user and normalize the path.
 pkg_dir = os.path.normpath(os.path.expanduser(pkg_dir_template.format(config=conda.config)))
