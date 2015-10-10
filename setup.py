@@ -1,15 +1,11 @@
 from setuptools import setup
 import os.path
 
-
-vn_context = {}
-with open(os.path.join('conda_execute', '_version.py'), 'r') as fh:
-    exec(fh.read(), vn_context)
-version = vn_context.get('__version__', 'dev')
+import versioneer
 
 
 setup(name='conda-execute',
-      version=version,
+      version=versioneer.get_version(),
       description='A tool for executing scripts in a consistent environment.',
       author='Phil Elson',
       author_email='pelson.pub@gmail.com',
@@ -21,5 +17,6 @@ setup(name='conda-execute',
               'conda-tmpenv = conda_execute.tmp_env:main',
           ]
       },
+      cmdclass=versioneer.get_cmdclass(),
      )
 
