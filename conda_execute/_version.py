@@ -40,7 +40,7 @@ def get_config():
     # _version.py
     cfg = VersioneerConfig()
     cfg.VCS = "git"
-    cfg.style = "pep440"
+    cfg.style = "pep440-post"
     cfg.tag_prefix = "v"
     cfg.parentdir_prefix = ""
     cfg.versionfile_source = "conda_execute/_version.py"
@@ -231,7 +231,7 @@ def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
     branch_name = run_command(GITS, ["rev-parse", "--abbrev-ref", "HEAD"],
                               cwd=root).strip()
     if branch_name == 'HEAD':
-        branches = run_command(GITS, ["branch", "--list", "--contains"],
+        branches = run_command(GITS, ["branch", "--contains"],
                                cwd=root).split('
 ')
         branches = [branch[2:] for branch in branches if branch[4:5] != '(']
