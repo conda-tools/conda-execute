@@ -9,7 +9,7 @@ source:
 
 requirements:
     build:
-        - python >2.6
+        - python
         - setuptools
 
     run:
@@ -19,6 +19,8 @@ requirements:
         - conda
         - psutil
 
+build:
+    skip: True  # [py <= 26]
 
 test:
     imports:
