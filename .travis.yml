@@ -2,6 +2,11 @@ language: python
 
 sudo: false
 
+env:
+  - python=2.7
+  - python=3.4
+  - python=3.5
+
 install:
 - export CONDA_BASE=http://repo.continuum.io/miniconda/Miniconda3
 - wget ${CONDA_BASE}-latest-Linux-x86_64.sh -O miniconda.sh;
@@ -9,7 +14,7 @@ install:
 - export PATH="$HOME/miniconda/bin:$PATH"
 - conda config --set show_channel_urls True
 
-- conda install --yes --file requirements.txt
+- conda install --yes python=${python} --file requirements.txt
 
 - python setup.py version
 - python setup.py install
