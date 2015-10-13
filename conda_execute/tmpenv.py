@@ -151,26 +151,8 @@ def main():
             logger.addHandler(logging.StreamHandler())
         logger.setLevel(log_level + offset)
     log.debug('Arguments passed: {}'.format(args))
-    return args.subcommand_func(args)
+    exit(args.subcommand_func(args))
 
-    exit_actions = []
-    try:
-        if args.script:
-            with tempfile.NamedTemporaryFile(prefix='conda-execute_', delete=False) as fh:
-                fh.writelines(args.script)
-                path = fh.name
-                log.info('Writing temporary code to {}'.format(path))
-                # Queue the temporary file up for cleaning.
-                exit_actions.append(lambda: os.remove(path))
-        elif args.path:
-            path = args.path
-        else:
-            raise ValueError('Either pass the filename to execute, or pipe with -c.')
-
-        exit(execute(path, force_env=args.force_env))
-    finally:
-        for action in exit_actions:
-            action()
 
 if __name__ == '__main__':
     main()

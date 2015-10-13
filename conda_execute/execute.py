@@ -19,7 +19,7 @@ import psutil
 import yaml
 
 import conda_execute.config
-from conda_execute.tmp_env import cleanup_tmp_envs
+from conda_execute.tmpenv import cleanup_tmp_envs
 
 
 log = logging.getLogger('conda-execute')
@@ -249,6 +249,7 @@ def main():
     finally:
         for action in exit_actions:
             action()
+
 
 if __name__ == '__main__':
     main()
