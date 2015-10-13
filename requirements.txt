@@ -1,3 +1,5 @@
+python
+setuptools
 yaml
 conda
 psutil

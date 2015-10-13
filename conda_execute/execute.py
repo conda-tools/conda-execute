@@ -233,7 +233,8 @@ def main():
 
     try:
         if args.code:
-            with tempfile.NamedTemporaryFile(prefix='conda-execute_', delete=False) as fh:
+            with tempfile.NamedTemporaryFile(prefix='conda-execute_',
+                                             delete=False, mode='w') as fh:
                 fh.writelines(args.code)
                 path = fh.name
                 log.info('Writing temporary code to {}'.format(path))
