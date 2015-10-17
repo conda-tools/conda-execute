@@ -10,6 +10,7 @@ import platform
 import tempfile
 import time
 import shutil
+import stat
 import subprocess
  
 import conda.api
@@ -68,10 +69,9 @@ def extract_spec(fh):
                               shebang[1] == 'conda'))
         if not conda_shebang:
             spec.setdefault('run_with', shebang)
-        else:
-            if platform.system() != 'Windows':
-                # TODO: Test this.
-                spec.setdefault('run_with', ['/bin/sh', '-c'])
+
+    if platform.system() != 'Windows':
+        spec.setdefault('run_with', ['/bin/sh', '-c'])
 
     return spec 
 
@@ -240,6 +240,8 @@ def main():
                 log.info('Writing temporary code to {}'.format(path))
                 # Queue the temporary file up for cleaning.
                 exit_actions.append(lambda: os.remove(path))
+                # Make the file executable.
+                os.chmod(path, stat.S_IREAD | stat.S_IEXEC)
         elif args.path:
             path = os.path.abspath(args.path)
         else:
