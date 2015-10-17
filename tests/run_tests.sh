@@ -7,6 +7,9 @@ tmp_script=$(dirname $0)/executable_script.sh
 
 conda execute -c "# conda execute" "# env:" "# - python" "# run_with: python" "print('hello')" -v
 
+# TODO: Assert that the version of Python is sensible
+conda execute -c "# conda execute" "# env:" "# - python" "python --version" -v
+
 conda execute -v -c <<EOF
 # conda execute
 # env:
