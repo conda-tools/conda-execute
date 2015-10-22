@@ -9,7 +9,7 @@ import tempfile
 import shutil
 import stat
 import subprocess
- 
+
 import conda.api
 import conda.lock
 import conda.resolve
@@ -32,11 +32,11 @@ def extract_env_spec(handle):
         if in_spec is True:
             # FIXME: we are pretty fragile with whitespace at this point.
             if line.startswith('#  - '):
-                spec.append(line[5:].strip()) 
+                spec.append(line[5:].strip())
             elif not line.startswith('# '):
                 # We're done with the spec.
                 break
-                
+
         elif line.strip() == '# conda execute env:':
             in_spec = True
     return spec
@@ -72,7 +72,7 @@ def extract_spec(fh):
     if platform.system() != 'Windows':
         spec.setdefault('run_with', ['/bin/sh', '-c'])
 
-    return spec 
+    return spec
 
 
 def read_shebang(line):
@@ -104,19 +104,24 @@ def execute_within_env(env_prefix, cmd):
     register_env_usage(env_prefix)
 
     if platform.system() == 'Windows':
+        import distutils.spawn
         paths = [os.path.join(env_prefix),
                  os.path.join(env_prefix, 'Scripts'),
                  os.path.join(env_prefix, 'bin')]
+        full_path = os.pathsep.join(paths) + os.pathsep + os.environ["PATH"]
+        cmd[0] = distutils.spawn.find_executable(cmd[0], path=full_path)
     else:
         paths = [os.path.join(env_prefix, 'bin')]
+        # Note os.pathsep != os.path.sep. It caught me out too ;)
+        full_path = os.pathsep.join(paths) + os.pathsep + os.environ["PATH"]
 
     environ = os.environ.copy()
-    # Note os.pathsep != os.path.sep. It caught me out too ;)
-    environ["PATH"] = os.pathsep.join(paths) + os.pathsep + os.environ["PATH"]
+    environ["PATH"] = full_path
 
     # The default is a non-zero return code. Successful processes will set this themselves.
     code = 42
     try:
+        log.debug('Running command: {}'.format(cmd))
         code = subprocess.check_call(cmd, env=environ)
     except subprocess.CalledProcessError as exception:
         code = exception.returncode
@@ -150,8 +155,8 @@ def main():
     parser.add_argument('--code', '-c', nargs='*', action=StdIn,
                         help='The code to execute.')
     parser.add_argument('remaining_args', help='Remaining arguments are passed through to the called script.',
-                        nargs=argparse.REMAINDER) 
-    args = parser.parse_args() 
+                        nargs=argparse.REMAINDER)
+    args = parser.parse_args()
 
     log_level = logging.WARN
     if args.verbose:
