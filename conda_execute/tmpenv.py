@@ -3,9 +3,11 @@ from __future__ import print_function
 import argparse
 import calendar
 import datetime
+import hashlib
 import logging
 import os
 import shutil
+import time
  
 import conda.api
 import conda.lock
@@ -19,7 +21,7 @@ import conda_execute.config
 log = logging.getLogger('conda-tmpenv')
 
 
-def register_env_usagesss(env_prefix):
+def register_env_usage(env_prefix):
     """
     Register the usage of this environment (so that other processes could garbage
     collect when we are done).
@@ -28,7 +30,49 @@ def register_env_usagesss(env_prefix):
     ps = psutil.Process()
     info_file = os.path.join(env_prefix, 'conda-meta', 'execution.log')
     with open(info_file, 'a') as fh:
-        fh.write('{}, {}\n'.format(ps.pid, calendar.timegm(time.gmtime())))
+        fh.write('{}, {}\n'.format(ps.pid, int(ps.create_time())))
+
+
+def create_env(spec, force_recreation=False, extra_channels=()):
+    """
+    Create a temporary environment from the given specification.
+
+    To avoid race conditions, ensure that a lock is attached to the env directory.
+
+    """
+    spec = tuple(sorted(spec))
+    # Use the first 20 hex characters of the sha256 to make the SHA somewhat legible. This could extend
+    # in the future if we have sufficient need.
+    hash = hashlib.sha256(u'\n'.join(spec).encode('utf-8')).hexdigest()[:20]
+    env_locn = os.path.join(conda_execute.config.env_dir, hash)
+
+    if force_recreation and os.path.exists(env_locn):
+        with conda.lock.Locked(conda_execute.config.env_dir):
+            log.info("Clearing up existing environment at {} for re-creation".format(env_locn))
+            shutil.rmtree(env_locn)
+
+    if not os.path.exists(env_locn):
+        index = conda.api.get_index(extra_channels)
+        # Ditto re the quietness.
+        r = conda.resolve.Resolve(index)
+        full_list_of_packages = sorted(r.solve(spec))
+
+        # Put out a newline. Conda's solve doesn't do it for us.
+        log.info('\n')
+
+        for tar_name in full_list_of_packages:
+            pkg_info = index[tar_name]
+            dist_name = tar_name[:-len('.tar.bz2')]
+            if not conda.install.is_extracted(conda_execute.config.pkg_dir, dist_name):
+                if not conda.install.is_fetched(conda_execute.config.pkg_dir, dist_name):
+                    log.info('Fetching {}'.format(dist_name))
+                    with conda.lock.Locked(conda_execute.config.pkg_dir):
+                        conda.fetch.fetch_pkg(pkg_info, conda_execute.config.pkg_dir)
+                with conda.lock.Locked(conda_execute.config.pkg_dir):
+                    conda.install.extract(conda_execute.config.pkg_dir, dist_name)
+            conda.install.link(conda_execute.config.pkg_dir, env_locn, dist_name)
+
+    return env_locn
 
 
 def subcommand_list(args):
@@ -58,18 +102,6 @@ def tmp_envs():
     envs = [prefix for prefix in envs
             if os.path.isdir(os.path.join(prefix, 'conda-meta'))]
     return envs
-
-
-def lock(lock_directory):
-    """
-    Decorator to get a lock on a directory for the life of the function.
-
-    """
-    def locker(fn):
-        def new_fn(*args, **kwargs):
-            with conda.lock.Locked(lock_directory):
-                return fn(*args, **kwargs)
-        return new_fn
 
 
 def envs_and_running_pids():
