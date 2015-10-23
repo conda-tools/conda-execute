@@ -22,6 +22,7 @@ from conda_execute.tmpenv import (cleanup_tmp_envs, register_env_usage,
 
 
 log = logging.getLogger('conda-execute')
+log.addHandler(logging.NullHandler())
 
 
 def extract_env_spec(handle):
@@ -93,18 +94,15 @@ def execute(path, force_env=False, arguments=()):
     env_spec = spec.get('env', [])
     log.info('Using specification: \n{}'.format(yaml.dump(spec)))
 
-    # TODO: Lock to prevent conda-execute removing any environments.
-    with conda.lock.Locked(conda_execute.config.env_dir):
-        env_prefix = create_env(env_spec, force_env, spec.get('channels', []))
-        log.info('Prefix: {}'.format(env_prefix))
-        # Register the environment for the conda-execute cache. (PID, creation time etc.)
-        # We must do this within the scope of the lock to avoid cleanup race conditions.
-        register_env_usage(env_prefix)
+    env_prefix = create_env(env_spec, force_env, spec.get('channels', []))
+    log.info('Prefix: {}'.format(env_prefix))
 
     return execute_within_env(env_prefix, spec['run_with'] + [path] + list(arguments))
 
 
 def execute_within_env(env_prefix, cmd):
+    register_env_usage(env_prefix)
+
     if platform.system() == 'Windows':
         paths = [os.path.join(env_prefix),
                  os.path.join(env_prefix, 'Scripts'),
@@ -162,14 +160,7 @@ def main():
         log_level = logging.ERROR
 
     # Configure the logging as desired.
-    for logger_name, offset in [('conda-execute', 0),
-                                ('conda.resolve', 10),
-                                ('stdoutlog', 0),
-                                ('dotupdate', 10)]:
-        logger = logging.getLogger(logger_name)
-        if not logger.handlers:
-            logger.addHandler(logging.StreamHandler())
-        logger.setLevel(log_level + offset)
+    conda_execute.config.setup_logging(log_level)
     log.debug('Arguments passed: {}'.format(args))
 
     exit_actions = []
