@@ -29,6 +29,11 @@ def register_env_usage(env_prefix):
     """
     ps = psutil.Process()
     info_file = os.path.join(env_prefix, 'conda-meta', 'execution.log')
+
+    # Some problems around race conditions meant that the conda-meta wasn't being created properly.
+    # Travis-CI run: https://travis-ci.org/pelson/conda-execute/jobs/86982714
+    if not os.path.exists(os.path.dirname(info_file)):
+        os.mkdir(os.path.dirname(info_file))
     with open(info_file, 'a') as fh:
         fh.write('{}, {}\n'.format(ps.pid, int(ps.create_time())))
 
