@@ -16,6 +16,7 @@ import psutil
 import yaml
 
 import conda_execute.config
+from conda_execute.lock import Locked
 
 
 log = logging.getLogger('conda-tmpenv')
@@ -57,7 +58,7 @@ def create_env(spec, force_recreation=False, extra_channels=()):
 
     # We lock the specific environment we are wanting to create. If other requests come in for the
     # exact same environment, they will have to wait for this to finish (good).
-    with conda.lock.Locked(env_locn):
+    with Locked(env_locn):
         # Note: There is no lock for re-creating. That means that it is possible to remove a tmpenv from
         # under another process' feet.
         if force_recreation and os.path.exists(env_locn):
@@ -82,7 +83,7 @@ def create_env(spec, force_recreation=False, extra_channels=()):
                 # the potential for a race condition (bad) - there is no solution to this unless
                 # conda/conda is updated to be more precise with its locks.
                 lock_name = os.path.join(conda_execute.config.pkg_dir, dist_name)
-                with conda.lock.Locked(lock_name):
+                with Locked(lock_name):
                     if not conda.install.is_extracted(conda_execute.config.pkg_dir, dist_name):
                         if not conda.install.is_fetched(conda_execute.config.pkg_dir, dist_name):
                             log.info('Fetching {}'.format(dist_name))
@@ -132,7 +133,7 @@ def envs_and_running_pids():
     generator, so try not to hold on for too long!
 
     """
-    with conda.lock.Locked(conda_execute.config.env_dir):
+    with Locked(conda_execute.config.env_dir):
         running_pids = set(psutil.pids())
         for env in tmp_envs():
             exe_log = os.path.join(env, 'conda-meta', 'execution.log')

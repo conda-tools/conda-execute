@@ -8,6 +8,8 @@ tmp_script=$(dirname $0)/executable_script.sh
 # Conda tmpenv
 #--------------
 conda tmpenv create python
+prefix=$(conda tmpenv name python)
+${prefix}/bin/python --version
 
 echo "python >2" > spec.txt
 echo "numpy" >> spec.txt
