@@ -1,14 +1,11 @@
 from __future__ import print_function
 
 import argparse
-import calendar
-import hashlib
 from io import StringIO
 import logging
 import os
 import platform
 import tempfile
-import time
 import shutil
 import stat
 import subprocess
@@ -20,10 +17,12 @@ import psutil
 import yaml
 
 import conda_execute.config
-from conda_execute.tmpenv import cleanup_tmp_envs
+from conda_execute.tmpenv import (cleanup_tmp_envs, register_env_usage,
+                                  create_env)
 
 
 log = logging.getLogger('conda-execute')
+log.addHandler(logging.NullHandler())
 
 
 def extract_env_spec(handle):
@@ -95,18 +94,15 @@ def execute(path, force_env=False, arguments=()):
     env_spec = spec.get('env', [])
     log.info('Using specification: \n{}'.format(yaml.dump(spec)))
 
-    # TODO: Lock to prevent conda-execute removing any environments.
-    with conda.lock.Locked(conda_execute.config.env_dir):
-        env_prefix = create_env(env_spec, force_env, spec.get('channels', []))
-        log.info('Prefix: {}'.format(env_prefix))
-        # Register the environment for the conda-execute cache. (PID, creation time etc.)
-        # We must do this within the scope of the lock to avoid cleanup race conditions.
-        register_env_usage(env_prefix)
+    env_prefix = create_env(env_spec, force_env, spec.get('channels', []))
+    log.info('Prefix: {}'.format(env_prefix))
 
     return execute_within_env(env_prefix, spec['run_with'] + [path] + list(arguments))
 
 
 def execute_within_env(env_prefix, cmd):
+    register_env_usage(env_prefix)
+
     if platform.system() == 'Windows':
         paths = [os.path.join(env_prefix),
                  os.path.join(env_prefix, 'Scripts'),
@@ -129,61 +125,6 @@ def execute_within_env(env_prefix, cmd):
         log.warn('{}: {}'.format(type(exception).__name__, exception))
     finally:
         return code
-
-
-def create_env(spec, force_recreation=False, extra_channels=()):
-    """
-    Create a temporary environment from the given specification.
-
-    To avoid race conditions, ensure that a lock is attached to the env directory.
-
-    """
-    spec = tuple(sorted(spec))
-    # Use the first 20 hex characters of the sha256 to make the SHA somewhat legible. This could extend
-    # in the future if we have sufficient need.
-    hash = hashlib.sha256(u'\n'.join(spec).encode('utf-8')).hexdigest()[:20]
-    env_locn = os.path.join(conda_execute.config.env_dir, hash)
-
-    if force_recreation and os.path.exists(env_locn):
-        with conda.lock.Locked(conda_execute.config.env_dir):
-            log.info("Clearing up existing environment at {} for re-creation".format(env_locn))
-            shutil.rmtree(env_locn)
-
-    if not os.path.exists(env_locn):
-        index = conda.api.get_index(extra_channels)
-        # Ditto re the quietness.
-        r = conda.resolve.Resolve(index)
-        full_list_of_packages = sorted(r.solve(spec))
-
-        # Put out a newline. Conda's solve doesn't do it for us. 
-        log.info('\n')
-
-        for tar_name in full_list_of_packages:
-            pkg_info = index[tar_name]
-            dist_name = tar_name[:-len('.tar.bz2')]
-            if not conda.install.is_extracted(conda_execute.config.pkg_dir, dist_name):
-                if not conda.install.is_fetched(conda_execute.config.pkg_dir, dist_name):
-                    log.info('Fetching {}'.format(dist_name))
-                    with conda.lock.Locked(conda_execute.config.pkg_dir):
-                        conda.fetch.fetch_pkg(pkg_info, conda_execute.config.pkg_dir)
-                with conda.lock.Locked(conda_execute.config.pkg_dir):
-                    conda.install.extract(conda_execute.config.pkg_dir, dist_name)
-            conda.install.link(conda_execute.config.pkg_dir, env_locn, dist_name)
-
-    return env_locn
-
-
-def register_env_usage(env_prefix):
-    """
-    Register the usage of this environment (so that other processes could garbage
-    collect when we are done).
-
-    """
-    ps = psutil.Process()
-    info_file = os.path.join(env_prefix, 'conda-meta', 'execution.log')
-    with open(info_file, 'a') as fh:
-        # Write out the PID and the integer creation time.
-        fh.write('{}, {}\n'.format(ps.pid, int(ps.create_time())))
 
 
 def main():
@@ -219,14 +160,7 @@ def main():
         log_level = logging.ERROR
 
     # Configure the logging as desired.
-    for logger_name, offset in [('conda-execute', 0),
-                                ('conda.resolve', 10),
-                                ('stdoutlog', 0),
-                                ('dotupdate', 10)]:
-        logger = logging.getLogger(logger_name)
-        if not logger.handlers:
-            logger.addHandler(logging.StreamHandler())
-        logger.setLevel(log_level + offset)
+    conda_execute.config.setup_logging(log_level)
     log.debug('Arguments passed: {}'.format(args))
 
     exit_actions = []
