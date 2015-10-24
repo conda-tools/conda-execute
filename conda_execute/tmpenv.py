@@ -182,7 +182,9 @@ def subcommand_create(args):
 
 
 def subcommand_clear(args):
-    return cleanup_tmp_envs(min_age=float(args.min_age))
+    if args.min_age is not None:
+        args.min_age = float(args.min_age)
+    return cleanup_tmp_envs(min_age=args.min_age)
 
 
 def cleanup_tmp_envs(min_age=None):

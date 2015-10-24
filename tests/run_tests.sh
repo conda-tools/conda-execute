@@ -17,6 +17,10 @@ conda tmpenv create python --file spec.txt
 rm spec.txt
 
 
+conda tmpenv list
+conda tmpenv clear
+conda tmpenv clear --min-age=0
+
 
 # Conda execute
 #--------------
