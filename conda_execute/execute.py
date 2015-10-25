@@ -25,23 +25,6 @@ log = logging.getLogger('conda-execute')
 log.addHandler(logging.NullHandler())
 
 
-def extract_env_spec(handle):
-    spec = []
-    in_spec = False
-    for line in handle:
-        if in_spec is True:
-            # FIXME: we are pretty fragile with whitespace at this point.
-            if line.startswith('#  - '):
-                spec.append(line[5:].strip())
-            elif not line.startswith('# '):
-                # We're done with the spec.
-                break
-
-        elif line.strip() == '# conda execute env:':
-            in_spec = True
-    return spec
-
-
 def extract_spec(fh):
     spec = []
     in_spec = False
@@ -54,12 +37,13 @@ def extract_spec(fh):
             if not line.strip().startswith('#'):
                 break
             spec.append(line.strip(' #\n'))
-        elif line.strip() == '# conda execute':
+        elif line.strip() in ['# conda execute', '# conda execute:']:
             in_spec = True
 
     spec = yaml.safe_load(StringIO(u'\n'.join(spec))) or {}
     if 'run_with' in spec:
-        spec['run_with'] = spec['run_with'].split()
+        if not isinstance(spec['run_with'], list):
+            spec['run_with'] = spec['run_with'].split()
 
     if shebang:
         base = os.path.basename(shebang[0])
@@ -92,6 +76,9 @@ def execute(path, force_env=False, arguments=()):
         spec = extract_spec(fh)
 
     env_spec = spec.get('env', [])
+    if not env_spec:
+        raise RuntimeError("No environment was found in the '# conda execute' "
+                           "specification.")
     log.info('Using specification: \n{}'.format(yaml.dump(spec)))
 
     env_prefix = create_env(env_spec, force_env, spec.get('channels', []))
