@@ -73,6 +73,16 @@ class Test_extract_spec(unittest.TestCase):
         spec = self.get_spec(script)
         self.assertEqual(spec, {'run_with': ['python']})
 
+    def test_fluffy_conda_execute_header(self):
+        # The colon technically isn't necessary, but we support it.
+        script = """
+        # conda execute:
+        #  run_with: wibble
+        """
+        spec = self.get_spec(script)
+        self.assertEqual(spec, {'run_with': ['wibble']})
+
+
 
 if __name__ == '__main__':
     unittest.main()

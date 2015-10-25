@@ -37,7 +37,7 @@ def extract_spec(fh):
             if not line.strip().startswith('#'):
                 break
             spec.append(line.strip(' #\n'))
-        elif line.strip() == '# conda execute':
+        elif line.strip() in ['# conda execute', '# conda execute:']:
             in_spec = True
 
     spec = yaml.safe_load(StringIO(u'\n'.join(spec))) or {}
