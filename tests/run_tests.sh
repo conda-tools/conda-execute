@@ -4,6 +4,10 @@ set -x -e
 example_script=$(dirname $0)/../example.sh
 tmp_script=$(dirname $0)/executable_script.sh
 
+# Unit tests
+#-----------
+python -m unittest discover --start $(dirname $0)/../conda_execute -v
+
 
 # Conda tmpenv
 #--------------
@@ -17,14 +21,19 @@ conda tmpenv create python --file spec.txt
 rm spec.txt
 
 
+conda execute -c "# conda execute" "# env:" "# - python" "# run_with: python" "import time" "time.sleep(5)" -v &
+sleep 1
+
 conda tmpenv list
 conda tmpenv clear
+
 conda tmpenv clear --min-age=0
 
 
 # Conda execute
 #--------------
 conda execute -c "# conda execute" "# env:" "# - python" "# run_with: python" "print('hello')" -v
+
 
 # TODO: Assert that the version of Python is sensible
 conda execute -c "# conda execute" "# env:" "# - python" "python --version" -v --force-env
