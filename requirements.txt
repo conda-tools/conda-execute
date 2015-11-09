@@ -1,5 +1,5 @@
 python
 setuptools
-yaml
+pyyaml
 conda
 psutil
