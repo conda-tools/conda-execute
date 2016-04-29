@@ -56,7 +56,7 @@ conda execute $example_script wibble --arg1=123 foobar
 
 
 cat <<EOF > $tmp_script
-#!/usr/bin/env conda-execute 
+#!/usr/bin/env conda-execute
 """
 A script that uses numpy's random normal distribution to print 10 numbers.
 
@@ -78,4 +78,4 @@ chmod u+x $tmp_script
 $tmp_script
 
 
-
+conda execute https://raw.githubusercontent.com/pelson/conda-execute/master/example.sh
