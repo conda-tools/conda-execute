@@ -9,7 +9,6 @@ import tempfile
 import shutil
 import stat
 import subprocess
-import tempfile
 import requests
 
 import conda.api
@@ -196,12 +195,13 @@ def main():
     exit_actions = []
 
     try:
+        path = None
         if args.path:
             if is_url(args.path):
                 args.code = download(args.path)
             else:
                 path = os.path.abspath(args.path)
-        if args.code:
+        if path is None and args.code:
             with tempfile.NamedTemporaryFile(prefix='conda-execute_',
                                              delete=False, mode='w') as fh:
                 fh.writelines(args.code)
