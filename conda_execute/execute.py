@@ -9,6 +9,8 @@ import tempfile
 import shutil
 import stat
 import subprocess
+import tempfile
+import requests
 
 import conda.api
 import conda.lock
@@ -119,6 +121,42 @@ def execute_within_env(env_prefix, cmd):
         return code
 
 
+def is_url(path):
+    """Simple check to determine if `path` is actually a url
+
+    Parameters
+    ----------
+    path : str
+
+    Returns
+    -------
+    bool
+        True if `path` is a url. False otherwise
+    """
+    if path.startswith('http'):
+        log.debug('url detected')
+        return True
+    return False
+
+
+def download(url):
+    """Download the contents of `path` to `download_location` or a tempfile
+
+    Parameters
+    ----------
+    url : str
+        url that contains a script to be executed with conda-execute
+
+    Returns
+    -------
+    download_contents : str
+        The content sof the download url
+    """
+    log.debug('downloading contents of {0}'.format(url))
+    r = requests.get(url)
+    return r.content.decode()
+
+_NAMED_TEMP_FILE_KWARGS = {}
 def main():
     parser = argparse.ArgumentParser(description='Execute a script in a temporary conda environment.')
     parser.add_argument('path', nargs='?',
@@ -158,6 +196,11 @@ def main():
     exit_actions = []
 
     try:
+        if args.path:
+            if is_url(args.path):
+                args.code = download(args.path)
+            else:
+                path = os.path.abspath(args.path)
         if args.code:
             with tempfile.NamedTemporaryFile(prefix='conda-execute_',
                                              delete=False, mode='w') as fh:
@@ -168,8 +211,6 @@ def main():
                 exit_actions.append(lambda: os.remove(path))
                 # Make the file executable.
                 os.chmod(path, stat.S_IREAD | stat.S_IEXEC)
-        elif args.path:
-            path = os.path.abspath(args.path)
         else:
             raise ValueError('Either pass the filename to execute, or pipe with -c.')
 
