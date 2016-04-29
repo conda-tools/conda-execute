@@ -155,7 +155,7 @@ def download(url):
     r = requests.get(url)
     return r.content.decode()
 
-_NAMED_TEMP_FILE_KWARGS = {}
+
 def main():
     parser = argparse.ArgumentParser(description='Execute a script in a temporary conda environment.')
     parser.add_argument('path', nargs='?',
@@ -195,13 +195,9 @@ def main():
     exit_actions = []
 
     try:
-        path = None
-        if args.path:
-            if is_url(args.path):
-                args.code = download(args.path)
-            else:
-                path = os.path.abspath(args.path)
-        if path is None and args.code:
+        if args.path is not None and is_url(args.path):
+            args.code = download(args.path)
+        if args.code:
             with tempfile.NamedTemporaryFile(prefix='conda-execute_',
                                              delete=False, mode='w') as fh:
                 fh.writelines(args.code)
@@ -211,6 +207,8 @@ def main():
                 exit_actions.append(lambda: os.remove(path))
                 # Make the file executable.
                 os.chmod(path, stat.S_IREAD | stat.S_IEXEC)
+        elif args.path:
+            path = os.path.abspath(args.path)
         else:
             raise ValueError('Either pass the filename to execute, or pipe with -c.')
 
