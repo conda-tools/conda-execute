@@ -170,37 +170,23 @@ def main():
     exit_actions = []
 
     try:
-        if not args.code and not args.path:
-            raise ValueError('Either pass the filename to execute, or pipe with -c.')
         if args.code:
             path = _write_code_to_disk(args.code)
             # Queue the temporary file up for cleaning.
             exit_actions.append(lambda: os.remove(path))
-        else:
+        elif args.path:
             # check to see if `args.path` is a remote path, download whatever
             # is at that remote location and stash it as args.code.
-            split_path = args.path.split('://')
-            if not 1 <= len(split_path) <= 2:
-                msg = ('Not sure what to do with args.path={0}. If you are '
-                       'surprised by this error message please report it at'
-                       'https://github.com/pelson/conda-execute/issues')
-                raise NotImplementedError(msg.format(args.path))
-            if len(split_path) == 1:
-                path = os.path.abspath(args.path)
+            if args.path.startswith('http'):
+                # download code from the remote path and write it to disk
+                code = requests.get(args.path).content.decode()
+                path = _write_code_to_disk(code)
+                # Queue the temporary file up for cleaning.
+                exit_actions.append(lambda: os.remove(path))
             else:
-                # then we have some sort of url
-                protocol, path = split_path
-                if protocol in ('http', 'https'):
-                    # download code from the remote path and write it to disk
-                    code = requests.get(args.path).content.decode()
-                    path = _write_code_to_disk(code)
-                    # Queue the temporary file up for cleaning.
-                    exit_actions.append(lambda: os.remove(path))
-                else:
-                    msg = ("Downloading from protocol={0} is not yet "
-                           "implemented. Please request this feature at "
-                           "https://github.com/pelson/conda-execute/issues")
-                    raise NotImplementedError(msg.format(protocol))
+                path = os.path.abspath(args.path)
+        else:
+            raise ValueError('Either pass the filename to execute, or pipe with -c.')
 
         exit_actions.append(cleanup_tmp_envs)
         exit(execute(path, force_env=args.force_env, arguments=args.remaining_args))
