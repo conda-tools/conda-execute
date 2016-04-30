@@ -120,6 +120,17 @@ def execute_within_env(env_prefix, cmd):
         return code
 
 
+def _write_code_to_disk(code):
+    with tempfile.NamedTemporaryFile(prefix='conda-execute_',
+                                     delete=False, mode='w') as fh:
+        fh.writelines(code)
+        path = fh.name
+        log.info('Writing temporary code to {}'.format(path))
+        # Make the file executable.
+        os.chmod(path, stat.S_IREAD | stat.S_IEXEC)
+        return path
+
+
 def main():
     parser = argparse.ArgumentParser(description='Execute a script in a temporary conda environment.')
     parser.add_argument('path', nargs='?',
@@ -159,32 +170,37 @@ def main():
     exit_actions = []
 
     try:
-        if args.path:
+        if not args.code and not args.path:
+            raise ValueError('Either pass the filename to execute, or pipe with -c.')
+        if args.code:
+            path = _write_code_to_disk(args.code)
+            # Queue the temporary file up for cleaning.
+            exit_actions.append(lambda: os.remove(path))
+        else:
+            # check to see if `args.path` is a remote path, download whatever
+            # is at that remote location and stash it as args.code.
             split_path = args.path.split('://')
-            if len(split_path) == 2:
-                protocol, path = split_path
+            if not 1 <= len(split_path) <= 2:
+                msg = ('Not sure what to do with args.path={0}. If you are '
+                       'surprised by this error message please report it at'
+                       'https://github.com/pelson/conda-execute/issues')
+                raise NotImplementedError(msg.format(args.path))
+            if len(split_path) == 1:
+                path = os.path.abspath(args.path)
+            else:
                 # then we have some sort of url
+                protocol, path = split_path
                 if protocol in ('http', 'https'):
-                    args.code = requests.get(args.path).content.decode()
+                    # download code from the remote path and write it to disk
+                    code = requests.get(args.path).content.decode()
+                    path = _write_code_to_disk(code)
+                    # Queue the temporary file up for cleaning.
+                    exit_actions.append(lambda: os.remove(path))
                 else:
-                    msg = ("Downloading from protocol {0} is not yet "
+                    msg = ("Downloading from protocol={0} is not yet "
                            "implemented. Please request this feature at "
                            "https://github.com/pelson/conda-execute/issues")
-                    raise NotImplementedError(msg.format(path[0]))
-        if args.code:
-            with tempfile.NamedTemporaryFile(prefix='conda-execute_',
-                                             delete=False, mode='w') as fh:
-                fh.writelines(args.code)
-                path = fh.name
-                log.info('Writing temporary code to {}'.format(path))
-                # Queue the temporary file up for cleaning.
-                exit_actions.append(lambda: os.remove(path))
-                # Make the file executable.
-                os.chmod(path, stat.S_IREAD | stat.S_IEXEC)
-        elif args.path:
-            path = os.path.abspath(args.path)
-        else:
-            raise ValueError('Either pass the filename to execute, or pipe with -c.')
+                    raise NotImplementedError(msg.format(protocol))
 
         exit_actions.append(cleanup_tmp_envs)
         exit(execute(path, force_env=args.force_env, arguments=args.remaining_args))
