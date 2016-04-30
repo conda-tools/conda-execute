@@ -120,42 +120,6 @@ def execute_within_env(env_prefix, cmd):
         return code
 
 
-def is_url(path):
-    """Simple check to determine if `path` is actually a url
-
-    Parameters
-    ----------
-    path : str
-
-    Returns
-    -------
-    bool
-        True if `path` is a url. False otherwise
-    """
-    if path.startswith('http'):
-        log.debug('url detected')
-        return True
-    return False
-
-
-def download(url):
-    """Download the contents of `path` to `download_location` or a tempfile
-
-    Parameters
-    ----------
-    url : str
-        url that contains a script to be executed with conda-execute
-
-    Returns
-    -------
-    download_contents : str
-        The content sof the download url
-    """
-    log.debug('downloading contents of {0}'.format(url))
-    r = requests.get(url)
-    return r.content.decode()
-
-
 def main():
     parser = argparse.ArgumentParser(description='Execute a script in a temporary conda environment.')
     parser.add_argument('path', nargs='?',
@@ -195,8 +159,18 @@ def main():
     exit_actions = []
 
     try:
-        if args.path is not None and is_url(args.path):
-            args.code = download(args.path)
+        if args.path:
+            split_path = args.path.split('://')
+            if len(split_path) == 2:
+                protocol, path = split_path
+                # then we have some sort of url
+                if protocol in ('http', 'https'):
+                    args.code = requests.get(args.path).content.decode()
+                else:
+                    msg = ("Downloading from protocol {0} is not yet "
+                           "implemented. Please request this feature at "
+                           "https://github.com/pelson/conda-execute/issues")
+                    raise NotImplementedError(msg.format(path[0]))
         if args.code:
             with tempfile.NamedTemporaryFile(prefix='conda-execute_',
                                              delete=False, mode='w') as fh:
