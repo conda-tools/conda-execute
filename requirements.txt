@@ -3,3 +3,4 @@ setuptools
 pyyaml
 conda
 psutil
+requests

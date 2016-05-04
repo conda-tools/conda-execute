@@ -9,6 +9,7 @@ import tempfile
 import shutil
 import stat
 import subprocess
+import requests
 
 import conda.api
 import conda.lock
@@ -119,6 +120,17 @@ def execute_within_env(env_prefix, cmd):
         return code
 
 
+def _write_code_to_disk(code):
+    with tempfile.NamedTemporaryFile(prefix='conda-execute_',
+                                     delete=False, mode='w') as fh:
+        fh.writelines(code)
+        path = fh.name
+        log.info('Writing temporary code to {}'.format(path))
+        # Make the file executable.
+        os.chmod(path, stat.S_IREAD | stat.S_IEXEC)
+        return path
+
+
 def main():
     parser = argparse.ArgumentParser(description='Execute a script in a temporary conda environment.')
     parser.add_argument('path', nargs='?',
@@ -159,17 +171,20 @@ def main():
 
     try:
         if args.code:
-            with tempfile.NamedTemporaryFile(prefix='conda-execute_',
-                                             delete=False, mode='w') as fh:
-                fh.writelines(args.code)
-                path = fh.name
-                log.info('Writing temporary code to {}'.format(path))
+            path = _write_code_to_disk(args.code)
+            # Queue the temporary file up for cleaning.
+            exit_actions.append(lambda: os.remove(path))
+        elif args.path:
+            # check to see if `args.path` is a remote path, download whatever
+            # is at that remote location and stash it as args.code.
+            if args.path.startswith('http'):
+                # download code from the remote path and write it to disk
+                code = requests.get(args.path).content.decode()
+                path = _write_code_to_disk(code)
                 # Queue the temporary file up for cleaning.
                 exit_actions.append(lambda: os.remove(path))
-                # Make the file executable.
-                os.chmod(path, stat.S_IREAD | stat.S_IEXEC)
-        elif args.path:
-            path = os.path.abspath(args.path)
+            else:
+                path = os.path.abspath(args.path)
         else:
             raise ValueError('Either pass the filename to execute, or pipe with -c.')
 
