@@ -8,7 +8,7 @@ import logging
 import os
 import shutil
 import time
- 
+
 import conda.api
 import conda.lock
 import conda.resolve
@@ -84,12 +84,12 @@ def create_env(spec, force_recreation=False, extra_channels=()):
                 # conda/conda is updated to be more precise with its locks.
                 lock_name = os.path.join(conda_execute.config.pkg_dir, dist_name)
                 with Locked(lock_name):
-                    if not conda.install.is_extracted(conda_execute.config.pkg_dir, dist_name):
-                        if not conda.install.is_fetched(conda_execute.config.pkg_dir, dist_name):
+                    if not conda.install.is_extracted(dist_name):
+                        if not conda.install.is_fetched(dist_name):
                             log.info('Fetching {}'.format(dist_name))
                             conda.fetch.fetch_pkg(pkg_info, conda_execute.config.pkg_dir)
-                        conda.install.extract(conda_execute.config.pkg_dir, dist_name)
-                    conda.install.link(conda_execute.config.pkg_dir, env_locn, dist_name)
+                        conda.install.extract(dist_name)
+                    conda.install.link(env_locn, dist_name)
 
             # Attach an execution.log file.
             with open(os.path.join(env_locn, 'conda-meta', 'execution.log'), 'a'):
@@ -213,7 +213,7 @@ def main():
     creation_args = argparse.ArgumentParser(add_help=False)
     creation_args.add_argument('specs', nargs='*')
     creation_args.add_argument('--file', default=[], action='append')
-    
+
     create_subcommand = subparsers.add_parser('create', parents=[common_arguments, creation_args])
     create_subcommand.set_defaults(subcommand_func=subcommand_create)
     create_subcommand.add_argument('--force', help='Whether to force the re-creation of the environment, even if it already exists.', action='store_true')
@@ -225,9 +225,9 @@ def main():
     clear_subcommand.set_defaults(subcommand_func=subcommand_clear)
     clear_subcommand.add_argument('--min-age', help=('The minimum age for the last registered PID on an '
                                                      'environment, before the environment can be considered '
-                                                     'for removal.'), default=None, dest='min_age') 
- 
-    args = parser.parse_args() 
+                                                     'for removal.'), default=None, dest='min_age')
+
+    args = parser.parse_args()
 
     log_level = logging.WARN
     if args.verbose:
