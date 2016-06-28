@@ -105,6 +105,7 @@ def execute_within_env(env_prefix, cmd):
 
     environ = os.environ.copy()
     environ["PATH"] = full_path
+    environ["PREFIX"] = env_prefix
 
     # The default is a non-zero return code. Successful processes will set this themselves.
     code = 42
