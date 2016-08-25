@@ -9,6 +9,7 @@ import tempfile
 import shutil
 import stat
 import subprocess
+import re
 import requests
 
 import conda.api
@@ -37,6 +38,9 @@ def extract_spec(fh):
         if in_spec:
             if not line.strip().startswith('#'):
                 break
+            line_is_comment = re.search('^\ *\#\ *\#', line)
+            if line_is_comment:
+                continue
             spec.append(line.strip(' #\n'))
         elif line.strip() in ['# conda execute', '# conda execute:']:
             in_spec = True
