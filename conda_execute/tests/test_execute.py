@@ -82,7 +82,16 @@ class Test_extract_spec(unittest.TestCase):
         spec = self.get_spec(script)
         self.assertEqual(spec, {'run_with': ['wibble']})
 
-
+    def test_comment(self):
+        script = """
+        # conda execute
+        #   # This is a comment
+        # # This is another comment
+         ## This is a final comment
+        #  run_with: python
+        """
+        spec = self.get_spec(script)
+        self.assertEqual(spec, {'run_with': ['python']})
 
 if __name__ == '__main__':
     unittest.main()
