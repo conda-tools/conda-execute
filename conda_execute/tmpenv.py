@@ -136,28 +136,31 @@ def envs_and_running_pids():
     with Locked(conda_execute.config.env_dir):
         running_pids = set(psutil.pids())
         for env in tmp_envs():
+            env_stats = None
             exe_log = os.path.join(env, 'conda-meta', 'execution.log')
             execution_pids = []
-            with open(exe_log, 'r') as fh:
-                for line in fh:
-                    execution_pids.append(line.strip().split(','))
-            alive_pids = []
-            newest_pid_time = os.path.getmtime(exe_log)
-            # Iterate backwards, as we are more likely to hit newer ones first in that order.
-            for pid, creation_time in execution_pids[::-1]:
-                pid = int(pid)
-                # Trim off the decimals to simplify comparisson with pid.create_time().
-                creation_time = int(float(creation_time))
+            if os.path.exists(exe_log):
+                with open(exe_log, 'r') as fh:
+                    for line in fh:
+                        execution_pids.append(line.strip().split(','))
+                alive_pids = []
+                newest_pid_time = os.path.getmtime(exe_log)
+                # Iterate backwards, as we are more likely to hit newer ones first in that order.
+                for pid, creation_time in execution_pids[::-1]:
+                    pid = int(pid)
+                    # Trim off the decimals to simplify comparisson with pid.create_time().
+                    creation_time = int(float(creation_time))
 
-                if creation_time > newest_pid_time:
-                    newest_pid_time = creation_time
+                    if creation_time > newest_pid_time:
+                        newest_pid_time = creation_time
 
-                # Check if the process is still running.
-                alive = (pid in running_pids and
-                         int(psutil.Process(pid).create_time()) == creation_time)
-                if alive:
-                    alive_pids.append(pid)
-            yield env, {'alive_PIDs': alive_pids, 'latest_creation_time': newest_pid_time}
+                    # Check if the process is still running.
+                    alive = (pid in running_pids and
+                             int(psutil.Process(pid).create_time()) == creation_time)
+                    if alive:
+                        alive_pids.append(pid)
+                        env_stats = {'alive_PIDs': alive_pids, 'latest_creation_time': newest_pid_time}
+            yield env, env_stats 
 
 
 def subcommand_name(args):
@@ -189,13 +192,17 @@ def subcommand_clear(args):
 
 def cleanup_tmp_envs(min_age=None):
     for env, env_stats in envs_and_running_pids():
-        last_pid_dt = datetime.datetime.fromtimestamp(env_stats['latest_creation_time'])
-        age = datetime.datetime.now() - last_pid_dt
-        if min_age is None:
-            min_age = conda_execute.config.min_age
-        old = age > datetime.timedelta(min_age)
-        if len(env_stats['alive_PIDs']) == 0 and old:
-            log.warn('Removing unused temporary environment {}.'.format(env))
+        if env_stats is not None:
+            last_pid_dt = datetime.datetime.fromtimestamp(env_stats['latest_creation_time'])
+            age = datetime.datetime.now() - last_pid_dt
+            if min_age is None:
+                min_age = conda_execute.config.min_age
+            old = age > datetime.timedelta(min_age)
+            if len(env_stats['alive_PIDs']) == 0 and old:
+                log.warn('Removing unused temporary environment {}.'.format(env))
+                shutil.rmtree(env)
+        else:
+            log.warn('Could not find execution log for {}. Removing environment.'.format(env))
             shutil.rmtree(env)
 
 
