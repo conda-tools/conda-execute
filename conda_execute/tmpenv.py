@@ -104,6 +104,8 @@ def subcommand_list(args):
 
     """
     for env, env_stats in envs_and_running_pids():
+        if env_stats is None:
+            continue
         last_pid_dt = datetime.datetime.fromtimestamp(env_stats['latest_creation_time'])
         age = datetime.datetime.now() - last_pid_dt
         old = age > datetime.timedelta(conda_execute.config.min_age)
