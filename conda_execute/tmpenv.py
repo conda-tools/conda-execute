@@ -77,8 +77,7 @@ def create_env(spec, force_recreation=False, extra_channels=()):
             for tar_name in full_list_of_packages:
                 pkg_info = index[tar_name]
                 dist_name = tar_name[:-len('.tar.bz2')]
-                conda_execute_logger = logging.getLogger('conda-execute')
-                conda_execute_logger.info('Resolved package: {}'.format(tar_name))
+                log.info('Resolved package: {}'.format(tar_name))
                 # We force a lock on retrieving anything which needs access to a distribution of this
                 # name. If other requests come in to get the exact same package they will have to wait
                 # for this to finish (good). If conda itself it fetching these pacakges then there is
