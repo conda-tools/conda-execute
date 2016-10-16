@@ -219,7 +219,8 @@ def main():
                                        description='valid subcommands',
                                        help='additional help')
 
-    list_subcommand = subparsers.add_parser('list', parents=[common_arguments])
+    list_subcommand = subparsers.add_parser('list', parents=[common_arguments],
+                                            help='List temporary environments.')
     list_subcommand.set_defaults(subcommand_func=subcommand_list)
 
     creation_args = argparse.ArgumentParser(add_help=False)
@@ -228,14 +229,17 @@ def main():
                                help=('Read package versions from the given file. Repeated file '
                                      'specifications can be passed (e.g. --file=file1 --file=file2)'))
 
-    create_subcommand = subparsers.add_parser('create', parents=[common_arguments, creation_args])
+    create_subcommand = subparsers.add_parser('create', parents=[common_arguments, creation_args],
+                                              help='Create a new environment from specifications.')
     create_subcommand.set_defaults(subcommand_func=subcommand_create)
     create_subcommand.add_argument('--force', help='Whether to force the re-creation of the environment, even if it already exists.', action='store_true')
 
-    name_subcommand = subparsers.add_parser('name', parents=[common_arguments, creation_args], help='Get the full prefix for a specified environment.')
+    name_subcommand = subparsers.add_parser('name', parents=[common_arguments, creation_args],
+                                            help='Get the full prefix for a specified environment.')
     name_subcommand.set_defaults(subcommand_func=subcommand_name)
 
-    clear_subcommand = subparsers.add_parser('clear', parents=[common_arguments])
+    clear_subcommand = subparsers.add_parser('clear', parents=[common_arguments],
+                                             help='Clean up unused temporary environments.')
     clear_subcommand.set_defaults(subcommand_func=subcommand_clear)
     clear_subcommand.add_argument('--min-age', help=('The minimum age for the last registered PID on an '
                                                      'environment, before the environment can be considered '
