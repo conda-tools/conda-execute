@@ -180,6 +180,10 @@ def subcommand_create(args):
     for fname in args.file:
         with open(fname) as fh:
             specs.extend([line.strip() for line in fh])
+    if not specs:
+        import sys
+        print("Error: no packages to install, must supply command line package specs or --file.", file=sys.stderr)
+        return 1
     log.info('Creating an environment with {}'.format(specs))
     r = create_env(specs, force_recreation=args.force)
     # Output the created environment name
