@@ -221,8 +221,10 @@ def main():
     list_subcommand.set_defaults(subcommand_func=subcommand_list)
 
     creation_args = argparse.ArgumentParser(add_help=False)
-    creation_args.add_argument('specs', nargs='*')
-    creation_args.add_argument('--file', default=[], action='append')
+    creation_args.add_argument('specs', nargs='*', help='Packages to install into the temporary environment')
+    creation_args.add_argument('--file', default=[], action='append',
+                               help=('Read package versions from the given file. Repeated file '
+                                     'specifications can be passed (e.g. --file=file1 --file=file2)'))
 
     create_subcommand = subparsers.add_parser('create', parents=[common_arguments, creation_args])
     create_subcommand.set_defaults(subcommand_func=subcommand_create)
