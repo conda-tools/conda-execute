@@ -163,7 +163,7 @@ def envs_and_running_pids():
                     if alive:
                         alive_pids.append(pid)
                         env_stats = {'alive_PIDs': alive_pids, 'latest_creation_time': newest_pid_time}
-            yield env, env_stats 
+            yield env, env_stats
 
 
 def subcommand_name(args):
@@ -176,11 +176,11 @@ def subcommand_name(args):
 
 
 def subcommand_create(args):
-    log.info('Creating an environment with {}'.format(args.specs))
     specs = list(args.specs)
     for fname in args.file:
         with open(fname) as fh:
             specs.extend([line.strip() for line in fh])
+    log.info('Creating an environment with {}'.format(specs))
     r = create_env(specs, force_recreation=args.force)
     # Output the created environment name
     print(r)
