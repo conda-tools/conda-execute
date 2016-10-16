@@ -250,7 +250,9 @@ def main():
     conda_execute.config.setup_logging(log_level)
 
     log.debug('Arguments passed: {}'.format(args))
-    exit(args.subcommand_func(args))
+    if hasattr(args, 'subcommand_func'):
+        exit(args.subcommand_func(args))
+    parser.error('No command specified')
 
 
 if __name__ == '__main__':
