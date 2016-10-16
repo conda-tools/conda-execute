@@ -210,12 +210,14 @@ def cleanup_tmp_envs(min_age=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Manage temporary environments within conda.')
+    common_arguments = argparse.ArgumentParser(add_help=False)
+    common_arguments.add_argument('--verbose', '-v', action='store_true', help='show debug output')
+
+    parser = argparse.ArgumentParser(description='Manage temporary environments within conda.',
+                                     parents=[common_arguments])
     subparsers = parser.add_subparsers(title='subcommands',
                                        description='valid subcommands',
                                        help='additional help')
-    common_arguments = argparse.ArgumentParser(add_help=False)
-    common_arguments.add_argument('--verbose', '-v', action='store_true', help='show debug output')
 
     list_subcommand = subparsers.add_parser('list', parents=[common_arguments])
     list_subcommand.set_defaults(subcommand_func=subcommand_list)
