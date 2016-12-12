@@ -163,7 +163,7 @@ def envs_and_running_pids():
                     if alive:
                         alive_pids.append(pid)
                         env_stats = {'alive_PIDs': alive_pids, 'latest_creation_time': newest_pid_time}
-            yield env, env_stats 
+            yield env, env_stats
 
 
 def subcommand_name(args):
@@ -176,11 +176,15 @@ def subcommand_name(args):
 
 
 def subcommand_create(args):
-    log.info('Creating an environment with {}'.format(args.specs))
     specs = list(args.specs)
     for fname in args.file:
         with open(fname) as fh:
             specs.extend([line.strip() for line in fh])
+    if not specs:
+        import sys
+        print("Error: no packages to install, must supply command line package specs or --file.", file=sys.stderr)
+        return 1
+    log.info('Creating an environment with {}'.format(specs))
     r = create_env(specs, force_recreation=args.force)
     # Output the created environment name
     print(r)
@@ -210,28 +214,36 @@ def cleanup_tmp_envs(min_age=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Manage temporary environments within conda.')
+    common_arguments = argparse.ArgumentParser(add_help=False)
+    common_arguments.add_argument('--verbose', '-v', action='store_true', help='show debug output')
+
+    parser = argparse.ArgumentParser(description='Manage temporary environments within conda.',
+                                     parents=[common_arguments])
     subparsers = parser.add_subparsers(title='subcommands',
                                        description='valid subcommands',
                                        help='additional help')
-    common_arguments = argparse.ArgumentParser(add_help=False)
-    common_arguments.add_argument('--verbose', '-v', action='store_true')
 
-    list_subcommand = subparsers.add_parser('list', parents=[common_arguments])
+    list_subcommand = subparsers.add_parser('list', parents=[common_arguments],
+                                            help='List temporary environments.')
     list_subcommand.set_defaults(subcommand_func=subcommand_list)
 
     creation_args = argparse.ArgumentParser(add_help=False)
-    creation_args.add_argument('specs', nargs='*')
-    creation_args.add_argument('--file', default=[], action='append')
+    creation_args.add_argument('specs', nargs='*', help='Packages to install into the temporary environment')
+    creation_args.add_argument('--file', default=[], action='append',
+                               help=('Read package versions from the given file. Repeated file '
+                                     'specifications can be passed (e.g. --file=file1 --file=file2)'))
 
-    create_subcommand = subparsers.add_parser('create', parents=[common_arguments, creation_args])
+    create_subcommand = subparsers.add_parser('create', parents=[common_arguments, creation_args],
+                                              help='Create a new environment from specifications.')
     create_subcommand.set_defaults(subcommand_func=subcommand_create)
     create_subcommand.add_argument('--force', help='Whether to force the re-creation of the environment, even if it already exists.', action='store_true')
 
-    name_subcommand = subparsers.add_parser('name', parents=[common_arguments, creation_args], help='Get the full prefix for a specified environment.')
+    name_subcommand = subparsers.add_parser('name', parents=[common_arguments, creation_args],
+                                            help='Get the full prefix for a specified environment.')
     name_subcommand.set_defaults(subcommand_func=subcommand_name)
 
-    clear_subcommand = subparsers.add_parser('clear', parents=[common_arguments])
+    clear_subcommand = subparsers.add_parser('clear', parents=[common_arguments],
+                                             help='Clean up unused temporary environments.')
     clear_subcommand.set_defaults(subcommand_func=subcommand_clear)
     clear_subcommand.add_argument('--min-age', help=('The minimum age for the last registered PID on an '
                                                      'environment, before the environment can be considered '
@@ -246,7 +258,9 @@ def main():
     conda_execute.config.setup_logging(log_level)
 
     log.debug('Arguments passed: {}'.format(args))
-    exit(args.subcommand_func(args))
+    if hasattr(args, 'subcommand_func'):
+        exit(args.subcommand_func(args))
+    parser.error('No command specified')
 
 
 if __name__ == '__main__':
