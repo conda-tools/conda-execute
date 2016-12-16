@@ -158,8 +158,12 @@ def envs_and_running_pids():
                         newest_pid_time = creation_time
 
                     # Check if the process is still running.
-                    alive = (pid in running_pids and
-                             int(psutil.Process(pid).create_time()) == creation_time)
+                    try:
+                        alive = (pid in running_pids and
+                                 int(psutil.Process(pid).create_time()) == creation_time)
+                    except psutil.NoSuchProcess:
+                        alive = False
+
                     if alive:
                         alive_pids.append(pid)
                         env_stats = {'alive_PIDs': alive_pids, 'latest_creation_time': newest_pid_time}
