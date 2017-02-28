@@ -3,7 +3,7 @@ conda execute
 
 A tool for executing scripts in a defined temporary environment.
 
-```
+```python
 $ cat my_script.py 
 #!/usr/bin/env python
 """
@@ -49,7 +49,7 @@ Running a conda execute script from the command line without the ``conda execute
 If you want to make a shell script that can be run with conda execute directly, rather than having to call ``conda execute`` each time,
 ensure that the shebang points at ``conda-execute`` and the ``run_with`` metadata is defined:
 
-```
+```python
 $ cat execute_directly.py 
 #!/usr/bin/env conda-execute
 """
