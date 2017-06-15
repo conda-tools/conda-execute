@@ -13,6 +13,7 @@ install:
 - bash miniconda.sh -b -p $HOME/miniconda
 - export PATH="$HOME/miniconda/bin:$PATH"
 - conda config --set show_channel_urls True
+- conda config --set auto_update_conda False
 
 - conda install --yes python=${python} --file requirements.txt
 
@@ -22,4 +23,6 @@ install:
 script:
 - conda execute --help
 - python -c "import conda_execute; print(conda_execute.__version__)"
+- python -c "import conda; print(conda.__version__)"
+- python -m conda info
 - ./tests/run_tests.sh

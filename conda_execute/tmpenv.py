@@ -9,12 +9,10 @@ import os
 import shutil
 import time
 
-import conda.api
-import conda.lock
-import conda.resolve
 import psutil
 import yaml
 
+from conda_execute.conda_interface import CONDA_VERSION_MAJOR_MINOR
 import conda_execute.config
 from conda_execute.lock import Locked
 
@@ -48,11 +46,50 @@ def name_env(spec):
     return env_locn
 
 
+def _create_env_conda_42(prefix, index, full_list_of_packages):
+    assert CONDA_VERSION_MAJOR_MINOR < (4, 3)
+    from conda.install import is_extracted, is_fetched, extract, link
+    from conda.fetch import fetch_pkg
+
+    for tar_name in full_list_of_packages:
+        pkg_info = index[tar_name]
+        dist_name = tar_name[:-len('.tar.bz2')]
+        log.info('Resolved package: {}'.format(tar_name))
+        # We force a lock on retrieving anything which needs access to a distribution of this
+        # name. If other requests come in to get the exact same package they will have to wait
+        # for this to finish (good). If conda itself it fetching these pacakges then there is
+        # the potential for a race condition (bad) - there is no solution to this unless
+        # conda/conda is updated to be more precise with its locks.
+        lock_name = os.path.join(conda_execute.config.pkg_dir, dist_name)
+        with Locked(lock_name):
+            if not is_extracted(dist_name):
+                if not is_fetched(dist_name):
+                    log.info('Fetching {}'.format(dist_name))
+                    fetch_pkg(pkg_info, conda_execute.config.pkg_dir)
+                extract(dist_name)
+            link(prefix, dist_name)
+
+
+def _create_env_conda_43(prefix, index, full_list_of_packages):
+    assert CONDA_VERSION_MAJOR_MINOR >= (4, 3)
+    from conda.core.package_cache import ProgressiveFetchExtract
+    from conda.core.link import UnlinkLinkTransaction
+    from conda.gateways.disk.create import mkdir_p
+
+    pfe = ProgressiveFetchExtract(index, full_list_of_packages)
+    pfe.execute()
+    mkdir_p(prefix)
+    txn = UnlinkLinkTransaction.create_from_dists(index, prefix, (), full_list_of_packages)
+    txn.execute()
+
+
 def create_env(spec, force_recreation=False, extra_channels=()):
     """
     Create a temporary environment from the given specification.
 
     """
+    from conda_execute.conda_interface import Resolve, get_index
+
     spec = tuple(sorted(spec))
     env_locn = name_env(spec)
 
@@ -66,31 +103,18 @@ def create_env(spec, force_recreation=False, extra_channels=()):
             shutil.rmtree(env_locn)
 
         if not os.path.exists(env_locn):
-            index = conda.api.get_index(extra_channels)
+            index = get_index(extra_channels)
             # Ditto re the quietness.
-            r = conda.resolve.Resolve(index)
+            r = Resolve(index)
             full_list_of_packages = sorted(r.solve(list(spec)))
 
             # Put out a newline. Conda's solve doesn't do it for us.
             log.info('\n')
 
-            for tar_name in full_list_of_packages:
-                pkg_info = index[tar_name]
-                dist_name = tar_name[:-len('.tar.bz2')]
-                log.info('Resolved package: {}'.format(tar_name))
-                # We force a lock on retrieving anything which needs access to a distribution of this
-                # name. If other requests come in to get the exact same package they will have to wait
-                # for this to finish (good). If conda itself it fetching these pacakges then there is
-                # the potential for a race condition (bad) - there is no solution to this unless
-                # conda/conda is updated to be more precise with its locks.
-                lock_name = os.path.join(conda_execute.config.pkg_dir, dist_name)
-                with Locked(lock_name):
-                    if not conda.install.is_extracted(dist_name):
-                        if not conda.install.is_fetched(dist_name):
-                            log.info('Fetching {}'.format(dist_name))
-                            conda.fetch.fetch_pkg(pkg_info, conda_execute.config.pkg_dir)
-                        conda.install.extract(dist_name)
-                    conda.install.link(env_locn, dist_name)
+            if CONDA_VERSION_MAJOR_MINOR >= (4, 3):
+                _create_env_conda_43(env_locn, index, full_list_of_packages)
+            else:
+                _create_env_conda_42(env_locn, index, full_list_of_packages)
 
             # Attach an execution.log file.
             with open(os.path.join(env_locn, 'conda-meta', 'execution.log'), 'a'):

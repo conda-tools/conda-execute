@@ -1,9 +1,9 @@
 import os
 
-import conda.lock
+from conda_execute.conda_interface import Locked as conda_Locked
 
 
-class Locked(conda.lock.Locked):
+class Locked(conda_Locked):
     def __init__(self, directory_to_lock):
         """
         Lock the given directory for use, unlike conda.lock.Lock which
@@ -21,4 +21,4 @@ class Locked(conda.lock.Locked):
         if not os.path.isdir(parent_path):
             os.makedirs(parent_path)
 
-        return conda.lock.Locked.__init__(self, path)
+        return conda_Locked.__init__(self, path)
