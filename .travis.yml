@@ -1,30 +1,33 @@
-language: python
+language: generic
 
 sudo: false
 
 env:
-  - python=2.7
-  - python=3.4
-  - python=3.5
+  - PYTHON_VERSION=2.7 CONDA_VERSION=4.2.16
+  - PYTHON_VERSION=3.4 CONDA_VERSION=4.2.16
+  - PYTHON_VERSION=3.6 CONDA_VERSION=4.2.16
+  - PYTHON_VERSION=2.7 CONDA_VERSION=4.3.21
+  - PYTHON_VERSION=3.4 CONDA_VERSION=4.3.21
+  - PYTHON_VERSION=3.6 CONDA_VERSION=4.3.21
 
 install:
-- export CONDA_BASE=http://repo.continuum.io/miniconda/Miniconda3
-- wget ${CONDA_BASE}-latest-Linux-x86_64.sh -O miniconda.sh;
-# - wget ${CONDA_BASE}-4.2.12-Linux-x86_64.sh -O miniconda.sh;
-# to switch to an older version of conda, also need to remove conda from the requirements.txt file
-- bash miniconda.sh -b -p $HOME/miniconda
-- export PATH="$HOME/miniconda/bin:$PATH"
-- conda config --set show_channel_urls True
-- conda config --set auto_update_conda False
+  - export CONDA_BASE=http://repo.continuum.io/miniconda/Miniconda3
+  - wget ${CONDA_BASE}-latest-Linux-x86_64.sh -O miniconda.sh;
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
 
-- conda install --yes python=${python} --file requirements.txt
+  - conda config --set show_channel_urls True
+  - conda install --yes python=$PYTHON_VERSION --file requirements.txt
+  - conda config --set auto_update_conda False
+  - conda install --yes conda=$CONDA_VERSION
 
-- python setup.py version
-- python setup.py install
+  - python setup.py version
+  - python setup.py install
 
 script:
-- conda execute --help
-- python -c "import conda_execute; print(conda_execute.__version__)"
-- python -c "import conda; print(conda.__version__)"
-- python -m conda info
-- ./tests/run_tests.sh
+  - which python
+  - which conda
+  - conda info
+  - conda execute --help
+  - ./tests/run_tests.sh
