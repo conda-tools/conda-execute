@@ -12,9 +12,6 @@ import subprocess
 import re
 import requests
 
-import conda.api
-import conda.lock
-import conda.resolve
 import psutil
 import yaml
 
