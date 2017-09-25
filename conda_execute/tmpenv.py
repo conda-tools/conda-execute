@@ -106,17 +106,16 @@ def create_env(spec, force_recreation=False, extra_channels=()):
             index = get_index(extra_channels)
             # Ditto re the quietness.
             r = Resolve(index)
-            full_list_of_packages = r.solve(list(spec))
-
-            sorted_list_of_packages = r.dependency_sort({d.name: d for d in full_list_of_packages})
+            full_list_of_packages = sorted(r.solve(list(spec)))
 
             # Put out a newline. Conda's solve doesn't do it for us.
             log.info('\n')
 
             if CONDA_VERSION_MAJOR_MINOR >= (4, 3):
+                sorted_list_of_packages = r.dependency_sort({d.name: d for d in full_list_of_packages})
                 _create_env_conda_43(env_locn, index, sorted_list_of_packages)
             else:
-                _create_env_conda_42(env_locn, index, sorted_list_of_packages)
+                _create_env_conda_42(env_locn, index, full_list_of_packages)
 
             # Attach an execution.log file.
             with open(os.path.join(env_locn, 'conda-meta', 'execution.log'), 'a'):
