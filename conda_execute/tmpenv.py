@@ -112,7 +112,8 @@ def create_env(spec, force_recreation=False, extra_channels=()):
             log.info('\n')
 
             if CONDA_VERSION_MAJOR_MINOR >= (4, 3):
-                _create_env_conda_43(env_locn, index, full_list_of_packages)
+                sorted_list_of_packages = r.dependency_sort({d.name: d for d in full_list_of_packages})
+                _create_env_conda_43(env_locn, index, sorted_list_of_packages)
             else:
                 _create_env_conda_42(env_locn, index, full_list_of_packages)
 
